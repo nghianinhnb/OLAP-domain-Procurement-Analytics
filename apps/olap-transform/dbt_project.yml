@@ -1,0 +1,19 @@
+name: 'olap_transform'
+version: '1.0.0'
+profile: 'clickhouse_erp'
+
+model-paths: ['models']
+
+models:
+  olap_transform:
+    silver:
+      +materialized: incremental
+      +schema: silver
+    gold:
+      +materialized: table   # dims/facts rebuilt or merged per run; see individual models
+      +schema: gold
+
+# Run cadence (see orchestration, e.g. Airflow/cron):
+#   Pure Event-Driven MV Chain: Bronze -> Silver -> Gold runs sub-second via ClickHouse Materialized Views.
+#   dbt models (Nightly Reconciliation): Run nightly for historical SCD2 point-in-time closure and audit.
+

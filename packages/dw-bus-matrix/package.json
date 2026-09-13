@@ -1,0 +1,12 @@
+{
+  "name": "@repo/dw-bus-matrix",
+  "version": "0.1.0",
+  "main": "dist/bus-matrix.js",
+  "types": "dist/bus-matrix.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@repo/contracts": "workspace:*"
+  }
+}

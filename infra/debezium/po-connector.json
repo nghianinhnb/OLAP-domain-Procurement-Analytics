@@ -1,0 +1,24 @@
+{
+  "name": "erp-purchase-order-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "database.hostname": "postgres",
+    "database.port": "5432",
+    "database.user": "erp",
+    "database.password": "erp_pass",
+    "database.dbname": "erp",
+    "topic.prefix": "erp.cdc",
+    "table.include.list": "public.purchase_order,public.purchase_order_line,public.goods_receipt",
+    "plugin.name": "pgoutput",
+    "slot.name": "erp_olap_slot",
+    "publication.autocreate.mode": "filtered",
+    "transforms": "reroute",
+    "transforms.reroute.type": "io.debezium.transforms.ByLogicalTableRouter",
+    "transforms.reroute.topic.regex": ".*public\\.(.*)",
+    "transforms.reroute.topic.replacement": "erp.cdc.$1",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter.schemas.enable": "false"
+  }
+}

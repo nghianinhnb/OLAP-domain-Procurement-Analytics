@@ -1,0 +1,126 @@
+version: '3.8'
+
+networks:
+  erp-net:
+
+volumes:
+  pg-data:
+  ch-data:
+  kafka-data:
+
+services:
+  # ---------- Source OLTP DB (giả lập ERP database của api app) ----------
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: erp
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: erp_pass
+    ports:
+      - '5432:5432'
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+    command: ['postgres', '-c', 'config_file=/etc/postgresql/postgresql.conf']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U erp -d erp']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks: [erp-net]
+
+  # ---------- Kafka (KRaft mode, không cần Zookeeper riêng) ----------
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      CLUSTER_ID: erp-olap-dev-cluster
+    ports:
+      - '9092:9092'
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ['CMD', 'kafka-topics', '--bootstrap-server', 'kafka:9092', '--list']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [erp-net]
+
+  # ---------- Debezium Connect: đọc CDC từ Postgres, đẩy vào Kafka topics ----------
+  debezium-connect:
+    image: debezium/connect:2.7
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: erp-connect-cluster
+      CONFIG_STORAGE_TOPIC: erp_connect_configs
+      OFFSET_STORAGE_TOPIC: erp_connect_offsets
+      STATUS_STORAGE_TOPIC: erp_connect_status
+    ports:
+      - '8083:8083' # REST API để đăng ký connector (xem infra/debezium/po-connector.json)
+    networks: [erp-net]
+
+  # ---------- ClickHouse: bronze/silver/gold ----------
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    ports:
+      - '8123:8123' # HTTP interface
+      - '9000:9000' # native protocol
+    volumes:
+      - ch-data:/var/lib/clickhouse
+      - ./packages/clickhouse-schema/migrations:/docker-entrypoint-initdb.d
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks: [erp-net]
+
+  # ---------- OLAP apps ----------
+  olap-ingest:
+    build:
+      context: .
+      dockerfile: ./apps/olap-ingest/Dockerfile
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKERS: kafka:9092
+    networks: [erp-net]
+
+  # Optional reconciliation tool (dbt): chạy bằng `docker compose run olap-transform dbt run`
+  olap-transform:
+    image: ghcr.io/dbt-labs/dbt-clickhouse:1.8.0
+    profiles: ['tools']
+    volumes:
+      - ./apps/olap-transform:/usr/app/dbt
+    working_dir: /usr/app/dbt
+    environment:
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ''
+    depends_on: [clickhouse]
+    networks: [erp-net]
+
+  metrics-api:
+    build:
+      context: .
+      dockerfile: ./apps/metrics-api/Dockerfile
+    depends_on: [clickhouse]
+    environment:
+      CLICKHOUSE_URL: http://clickhouse:8123
+    ports:
+      - '4000:4000'
+    networks: [erp-net]

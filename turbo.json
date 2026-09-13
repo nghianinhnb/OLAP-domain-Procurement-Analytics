@@ -1,0 +1,40 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "pipeline": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "contracts#build": {
+      "outputs": ["dist/**"]
+    },
+    "dw-bus-matrix#build": {
+      "dependsOn": ["contracts#build"],
+      "outputs": ["dist/**"]
+    },
+    "clickhouse-schema#migrate": {
+      "dependsOn": ["dw-bus-matrix#build"],
+      "outputs": []
+    },
+    "olap-ingest#build": {
+      "dependsOn": ["contracts#build", "clickhouse-schema#migrate"],
+      "outputs": ["dist/**"]
+    },
+    "olap-transform#run": {
+      "dependsOn": ["clickhouse-schema#migrate"],
+      "outputs": []
+    },
+    "metrics-api#build": {
+      "dependsOn": ["metrics-definitions#build", "clickhouse-schema#migrate"],
+      "outputs": ["dist/**"]
+    },
+    "api#build": {
+      "dependsOn": ["contracts#build"],
+      "outputs": ["dist/**"]
+    },
+    "lint": {},
+    "test": {
+      "dependsOn": ["build"]
+    }
+  }
+}
