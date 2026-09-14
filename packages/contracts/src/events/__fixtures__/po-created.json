@@ -1,0 +1,28 @@
+{
+  "op": "c",
+  "ts_ms": 1757836800000,
+  "lsn": "0/1A2B3C4",
+  "source_table": "purchase_order",
+  "after": {
+    "po_id": "b3f1c2a0-1111-4a2b-9c3d-000000000001",
+    "po_number": "PO-2026-00042",
+    "pr_id": "a1e2d3c4-2222-4a2b-9c3d-000000000002",
+    "vendor_id": "c4d5e6f7-3333-4a2b-9c3d-000000000003",
+    "cost_center_id": "d5e6f7a8-4444-4a2b-9c3d-000000000004",
+    "currency_code": "VND",
+    "status": "SUBMITTED",
+    "total_amount": 125000000,
+    "created_by": "e6f7a8b9-5555-4a2b-9c3d-000000000005",
+    "created_at": "2026-09-14T03:00:00.000Z",
+    "approved_at": null
+  },
+  "lines": [
+    {
+      "po_line_id": "f7a8b9c0-6666-4a2b-9c3d-000000000006",
+      "item_id": "a8b9c0d1-7777-4a2b-9c3d-000000000007",
+      "quantity": 10,
+      "unit_price": 12500000,
+      "line_amount": 125000000
+    }
+  ]
+}

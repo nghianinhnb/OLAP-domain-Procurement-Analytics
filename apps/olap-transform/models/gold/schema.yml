@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: fact_purchase_order
+    description: Grain = 1 row per PO line item.
+    columns:
+      - name: po_line_id
+        tests: [unique, not_null]
+      - name: po_id
+        tests: [not_null]
+      - name: vendor_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_vendor')
+              field: vendor_sk
+      - name: item_sk
+        tests:
+          - not_null
+          - relationships: { to: ref('dim_item'), field: item_sk }
+      - name: line_amount
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              inclusive: true
+
+  - name: dim_vendor
+    columns:
+      - name: vendor_sk
+        tests: [unique, not_null]
+      - name: vendor_id
+        tests: [not_null]
+      # SCD2 invariant: at most one current row per business key
+      - name: is_current
+        tests:
+          - accepted_values: { values: [0, 1] }
+
+  - name: fact_procure_to_pay_accumulating
+    columns:
+      - name: pr_line_id
+        tests: [unique, not_null]
+      - name: pr_to_payment_days
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0 }
+              # negative cycle time = a milestone timestamp is out of order upstream

@@ -1,0 +1,26 @@
+version: '3.8'
+# Ephemeral test stack — used by integration/chaos tests via testcontainers OR
+# directly in CI as `docker compose -f docker-compose.test.yml up -d`.
+# tmpfs storage: fast, and guarantees no leftover state between CI runs.
+
+services:
+  kafka-test:
+    image: confluentinc/cp-kafka:7.6.0
+    tmpfs: [/var/lib/kafka/data]
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-test:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-test:9093
+      CLUSTER_ID: erp-olap-test-cluster
+    ports: ['19092:9092']
+
+  clickhouse-test:
+    image: clickhouse/clickhouse-server:24.8
+    tmpfs: [/var/lib/clickhouse]
+    volumes:
+      - ./packages/clickhouse-schema/migrations:/docker-entrypoint-initdb.d
+    ports: ['18123:8123']

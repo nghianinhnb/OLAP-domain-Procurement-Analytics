@@ -1,0 +1,7 @@
+{
+  "op": "d",
+  "ts_ms": 1757840400000,
+  "lsn": "0/1A2B400",
+  "source_table": "purchase_order",
+  "after": null
+}
